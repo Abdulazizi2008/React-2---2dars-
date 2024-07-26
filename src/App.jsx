@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 
 function App() {
-  const [posts, setPosts] = useState([
+  const base = [
     {
       id: 1,
       title: "My First Post",
@@ -36,11 +36,15 @@ function App() {
       datetime: "July 01, 2021 11:17:36 AM",
       body: "Lorem ipsum dolor sit amet consectetur adipisicing elit. Quis consequatur expedita, assumenda similique non optio! Modi nesciunt excepturi corrupti atque blanditiis quo nobis, non optio quae possimus illum exercitationem ipsa!",
     },
-  ]);
+  ];
+
+  const [posts, setPosts] = useState([]);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [postTitle, setPostTitle] = useState("");
   const [postBody, setPostBody] = useState("");
+  const [loading, setLoading] = useState(true);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,6 +62,24 @@ function App() {
     setSearchResults(filteredPosts);
   }, [posts, search]);
 
+  useEffect(() => {
+    async function fetchPosts() {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/posts`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setPosts(data);
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPosts();
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const id = posts.length ? posts[posts.length - 1].id + 1 : 1;
@@ -71,16 +93,30 @@ function App() {
   };
   console.log(postTitle);
   console.log(postBody);
-  const handleDelete = (id) => {
-    const filteredPosts = posts.filter((post) => post.id !== id);
-    setPosts(filteredPosts);
-    navigate("/");
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/posts/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const filteredPosts = posts.filter((post) => post.id !== id);
+      setPosts(filteredPosts);
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting post:", error);
+    }
   };
 
   return (
     <div className="App">
       <Header title="React JS Blog" />
       <Nav search={search} setSearch={setSearch} />
+      {loading && <p>Loading...</p>}
       <Routes>
         <Route path="/" element={<Home posts={searchResults} />} />
         <Route
